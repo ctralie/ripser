@@ -5,14 +5,9 @@ import platform
 from setuptools import setup
 from setuptools.extension import Extension
 
-# Ensure Cython is installed before we even attempt to install Ripser.py
-try:
-    from Cython.Build import cythonize
-    from Cython.Distutils import build_ext
-except:
-    print("You don't seem to have Cython installed. Please get a")
-    print("copy from www.cython.org or install it with `pip install Cython`")
-    sys.exit(1)
+from Cython.Build import cythonize
+from Cython.Distutils import build_ext
+import numpy
 
 ## Get version information from _version.py
 import re
@@ -28,19 +23,6 @@ else:
 # Use README.md as the package long description  
 with open('README.md') as f:
     long_description = f.read()
-
-class CustomBuildExtCommand(build_ext):
-    """ This extension command lets us not require numpy be installed before running pip install ripser 
-        build_ext command for use when numpy headers are needed.
-    """
-
-    def run(self):
-        # Import numpy here, only when headers are needed
-        import numpy
-        # Add numpy headers to include_dirs
-        self.include_dirs.append(numpy.get_include())
-        # Call original build_ext command
-        build_ext.run(self)
 
 extra_compile_args = ["-Ofast", "-D_hypot=hypot"]
 extra_link_args = []
@@ -69,7 +51,8 @@ ext_modules = Extension(
     define_macros=[
         ("USE_COEFFICIENTS", 1),
         ("NDEBUG", 1), 
-        ("ASSEMBLE_REDUCTION_MATRIX", 1)
+        ("ASSEMBLE_REDUCTION_MATRIX", 1),
+        ("NPY_NO_DEPRECATED_API", "NPY_1_7_API_VERSION"),
     ],
     extra_compile_args=extra_compile_args,
     extra_link_args=extra_link_args,
@@ -88,29 +71,29 @@ setup(
     url="https://ripser.scikit-tda.org",
     license='MIT',
     packages=['ripser'],
-    ext_modules=cythonize(ext_modules),
+    ext_modules=cythonize(ext_modules, include_path=[numpy.get_include()]),
     install_requires=[
         'Cython',
         'numpy',
         'scipy',
         'scikit-learn',
-        'persim'
+        'persim',
+        'matplotlib',
     ],
     extras_require={
         'testing': [ # `pip install -e ".[testing]"``
-            'pytest'  
+            'pytest',
         ],
         'docs': [ # `pip install -e ".[docs]"`
-            'sktda_docs_config'
+            'sktda_docs_config',
         ],
         'examples': [
             'persim',
             'tadasets',
             'jupyter',
-            'pillow'
+            'pillow',
         ]
     },
-    cmdclass={'build_ext': CustomBuildExtCommand},
     python_requires='>=3.6',
     classifiers=[
         'Intended Audience :: Science/Research',
